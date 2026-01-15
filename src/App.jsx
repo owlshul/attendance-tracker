@@ -17,10 +17,13 @@ export default function AttendanceTracker() {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
+  const [timetable, setTimetable] = useState(null);
+  const [userSection, setUserSection] = useState('B');
+  const [showTimetableImport, setShowTimetableImport] = useState(false);
 
   // Load from localStorage with version tracking
   useEffect(() => {
-    const saved = localStorage.getItem('attendance-data');
+    const saved = localStorage.getItem('attendance-data-v2');
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -31,6 +34,8 @@ export default function AttendanceTracker() {
         setSubjects(data.subjects || []);
         setAttendance(data.attendance || {});
         setViewMode(data.viewMode || 'week');
+        setTimetable(data.timetable || null);
+        setUserSection(data.userSection || 'B');
       } catch (e) {}
     }
   }, []);
@@ -39,10 +44,11 @@ export default function AttendanceTracker() {
   useEffect(() => {
     localStorage.setItem('attendance-data-v2', JSON.stringify({
       mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode,
+      timetable, userSection,
       version: 2,
       lastUpdated: new Date().toISOString()
     }));
-  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode]);
+  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode, timetable, userSection]);
 
   // Calculate stats
   const getStats = () => {
@@ -150,6 +156,78 @@ export default function AttendanceTracker() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
+  // Timetable helpers
+  const getClassesForDate = (date, subjectCode) => {
+    if (!timetable) return null;
+    
+    const dateObj = new Date(date);
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayClasses = timetable.classes[dayName];
+    
+    if (!dayClasses) return null;
+    
+    // Check all time slots for this subject
+    const classes = [];
+    Object.entries(dayClasses).forEach(([time, slots]) => {
+      if (slots[userSection] && slots[userSection].code === subjectCode) {
+        classes.push({ time, type: slots[userSection].type });
+      }
+    });
+    
+    return classes.length > 0 ? classes : null;
+  };
+
+  const hasClassOnDate = (date, subjectCode) => {
+    const classes = getClassesForDate(date, subjectCode);
+    return classes !== null;
+  };
+
+  const importTimetable = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        // Support both direct timetable format and nested semester6 format
+        const timetableData = data.semester6 || data;
+        
+        if (timetableData.classes && timetableData.subjects) {
+          setTimetable(timetableData);
+          setShowTimetableImport(false);
+          
+          // Auto-add subjects from timetable if not already added
+          const existingCodes = subjects.map(s => s.code);
+          const newSubjects = [];
+          const colors = ['#8B5CF6', '#EC4899', '#06B6D4', '#10B981', '#F59E0B', '#6366F1', '#EF4444', '#14B8A6'];
+          
+          Object.entries(timetableData.subjects).forEach(([code, name]) => {
+            if (!existingCodes.includes(code)) {
+              newSubjects.push({
+                id: `${Date.now()}-${code}`,
+                name: name,
+                code: code,
+                color: colors[newSubjects.length % colors.length]
+              });
+            }
+          });
+          
+          if (newSubjects.length > 0) {
+            setSubjects([...subjects, ...newSubjects]);
+          }
+          
+          alert('Timetable imported successfully!');
+        } else {
+          alert('Invalid timetable format');
+        }
+      } catch (error) {
+        alert('Error reading timetable file');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Subject actions
   const addSubject = () => {
     if (!newSubjectName.trim()) return;
@@ -157,6 +235,7 @@ export default function AttendanceTracker() {
     setSubjects([...subjects, {
       id: Date.now().toString(),
       name: newSubjectName.trim(),
+      code: newSubjectName.trim().split(' ')[0].toUpperCase(), // Extract code from name
       color: colors[subjects.length % colors.length]
     }]);
     setNewSubjectName('');
@@ -228,8 +307,15 @@ export default function AttendanceTracker() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Attendance Survival</h1>
-            <p className="text-xs text-slate-600">Bunk smartly</p>
+            <p className="text-xs text-slate-600">Stay above the line</p>
           </div>
+          <button
+            onClick={resetEverything}
+            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+            title="Reset all data"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Mode Toggle */}
@@ -623,6 +709,61 @@ export default function AttendanceTracker() {
                   )
                 ) : (
                   <div className="space-y-3">
+                    {/* Timetable Import */}
+                    {!showTimetableImport ? (
+                      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 shadow-sm border border-purple-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold text-purple-900 mb-1">📅 Smart Marking</div>
+                            <div className="text-xs text-purple-700">Import timetable to see which classes you have each day</div>
+                          </div>
+                          <button
+                            onClick={() => setShowTimetableImport(true)}
+                            className="px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
+                          >
+                            {timetable ? 'Change' : 'Import'}
+                          </button>
+                        </div>
+                        {timetable && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-purple-700">Section:</span>
+                            <select
+                              value={userSection}
+                              onChange={(e) => setUserSection(e.target.value)}
+                              className="px-2 py-1 text-xs border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="A">A</option>
+                              <option value="B">B</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                        <div className="mb-3">
+                          <div className="text-sm font-semibold text-slate-900 mb-1">Import Timetable</div>
+                          <div className="text-xs text-slate-600 mb-2">Upload JSON file with your class schedule</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <label className="flex-1 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer text-center">
+                            Choose File
+                            <input
+                              type="file"
+                              accept=".json"
+                              onChange={importTimetable}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            onClick={() => setShowTimetableImport(false)}
+                            className="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-lg hover:bg-slate-200 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Add Subject */}
                     <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200">
                       {!showAddSubject ? (
@@ -769,27 +910,40 @@ export default function AttendanceTracker() {
                                   const status = attendance[key];
                                   const d = new Date(date);
                                   const today = isToday(date);
+                                  const hasClass = !subject.code || hasClassOnDate(date, subject.code);
+                                  const classInfo = subject.code ? getClassesForDate(date, subject.code) : null;
 
                                   return (
-                                    <button
-                                      key={date}
-                                      onClick={() => toggleAttendance(subject.id, date)}
-                                      className={`flex flex-col items-center justify-center ${viewMode === 'month' ? 'aspect-square' : 'min-w-[2.5rem] h-14'} rounded-lg text-xs font-semibold transition-all ${
-                                        status === 'present'
-                                          ? 'bg-emerald-500 text-white'
-                                          : status === 'absent'
-                                          ? 'bg-red-500 text-white'
-                                          : 'bg-slate-100 text-slate-400'
-                                      } ${today ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
-                                    >
-                                      <div className="text-[10px] opacity-75">
-                                        {d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1)}
-                                      </div>
-                                      <div className="font-bold">{d.getDate()}</div>
-                                      <div className="text-xs">
-                                        {status === 'present' ? '✓' : status === 'absent' ? '✕' : '·'}
-                                      </div>
-                                    </button>
+                                    <div key={date} className="flex flex-col">
+                                      <button
+                                        onClick={() => toggleAttendance(subject.id, date)}
+                                        disabled={!hasClass && timetable}
+                                        className={`flex flex-col items-center justify-center ${viewMode === 'month' ? 'aspect-square' : 'min-w-[2.5rem] h-14'} rounded-lg text-xs font-semibold transition-all ${
+                                          !hasClass && timetable
+                                            ? 'bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
+                                            : status === 'present'
+                                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                            : status === 'absent'
+                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                        } ${today ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
+                                        title={!hasClass && timetable ? 'No class scheduled' : classInfo ? `${classInfo.map(c => `${c.time} (${c.type})`).join(', ')}` : ''}
+                                      >
+                                        <div className="text-[10px] opacity-75">
+                                          {d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1)}
+                                        </div>
+                                        <div className="font-bold">{d.getDate()}</div>
+                                        <div className="text-xs">
+                                          {!hasClass && timetable ? '–' : status === 'present' ? '✓' : status === 'absent' ? '✕' : '·'}
+                                        </div>
+                                      </button>
+                                      {/* Show class count indicator */}
+                                      {classInfo && classInfo.length > 0 && (
+                                        <div className="text-[9px] text-center text-purple-600 font-semibold mt-0.5">
+                                          {classInfo.length}×
+                                        </div>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </div>
