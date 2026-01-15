@@ -16,8 +16,9 @@ export default function AttendanceTracker() {
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
 
-  // Load from localStorage
+  // Load from localStorage with version tracking
   useEffect(() => {
     const saved = localStorage.getItem('attendance-data');
     if (saved) {
@@ -29,16 +30,19 @@ export default function AttendanceTracker() {
         setQuickAttended(data.quickAttended || 0);
         setSubjects(data.subjects || []);
         setAttendance(data.attendance || {});
+        setViewMode(data.viewMode || 'week');
       } catch (e) {}
     }
   }, []);
 
-  // Save to localStorage
+  // Save to localStorage with version tracking
   useEffect(() => {
-    localStorage.setItem('attendance-data', JSON.stringify({
-      mode, requirement, quickTotal, quickAttended, subjects, attendance
+    localStorage.setItem('attendance-data-v2', JSON.stringify({
+      mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode,
+      version: 2,
+      lastUpdated: new Date().toISOString()
     }));
-  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance]);
+  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode]);
 
   // Calculate stats
   const getStats = () => {
@@ -93,19 +97,35 @@ export default function AttendanceTracker() {
   };
 
   const forecast = getForecast();
+  const maxForecast = Math.max(...forecast, requirement, 100);
 
   // Date helpers
   const getDates = () => {
     const dates = [];
     const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - (7 * dateOffset) - 6);
     
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      dates.push(d.toISOString().split('T')[0]);
+    if (viewMode === 'month') {
+      // Show current month
+      const year = today.getFullYear();
+      const month = today.getMonth() - dateOffset;
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      
+      for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d).toISOString().split('T')[0]);
+      }
+    } else {
+      // Show week
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() - (7 * dateOffset) - 6);
+      
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
     }
+    
     return dates;
   };
 
@@ -116,7 +136,18 @@ export default function AttendanceTracker() {
   };
 
   const canGoNext = () => {
+    if (viewMode === 'month') {
+      return dateOffset > 0;
+    }
     return dateOffset > 0;
+  };
+
+  const getCurrentMonthName = () => {
+    const today = new Date();
+    const month = today.getMonth() - dateOffset;
+    const year = today.getFullYear();
+    const date = new Date(year, month, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   // Subject actions
@@ -355,30 +386,37 @@ export default function AttendanceTracker() {
                 <TrendingUp className="w-4 h-4 text-indigo-600" />
                 <span className="text-sm font-semibold text-slate-700">10-Class Forecast</span>
               </div>
-              <div className="relative h-32">
-                <div className="absolute inset-0 flex items-end justify-between gap-0.5">
-                  {forecast.map((pct, i) => (
-                    <div key={i} className="flex-1 group relative">
-                      <div
-                        className={`w-full rounded-t transition-all cursor-pointer ${
-                          pct >= requirement ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
-                        }`}
-                        style={{ height: `${pct}%` }}
-                      >
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          {Math.round(pct)}%
+              <div className="relative h-32" style={{ paddingBottom: '8px' }}>
+                <div className="absolute inset-0 flex items-end justify-between gap-0.5" style={{ paddingBottom: '20px' }}>
+                  {forecast.map((pct, i) => {
+                    const heightPercent = (pct / maxForecast) * 100;
+                    return (
+                      <div key={i} className="flex-1 group relative flex flex-col items-center h-full justify-end">
+                        <div
+                          className={`w-full rounded-t transition-all cursor-pointer ${
+                            pct >= requirement ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        >
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                            {Math.round(pct)}%
+                          </div>
                         </div>
                       </div>
-                      <div className="text-center text-xs text-slate-500 mt-1">
-                        {i === 0 ? 'Now' : i}
-                      </div>
+                    );
+                  })}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-500">
+                  {forecast.map((_, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      {i === 0 ? 'Now' : i}
                     </div>
                   ))}
                 </div>
                 {/* Goal line */}
                 <div
                   className="absolute w-full border-t-2 border-dashed border-indigo-400 pointer-events-none"
-                  style={{ bottom: `${requirement}%` }}
+                  style={{ bottom: `${20 + ((requirement / maxForecast) * (100 - 20))}px` }}
                 >
                   <span className="absolute -top-3 right-0 text-xs font-semibold text-indigo-600 bg-white px-1 rounded">
                     {requirement}%
@@ -471,29 +509,36 @@ export default function AttendanceTracker() {
                     <TrendingUp className="w-4 h-4 text-indigo-600" />
                     <span className="text-sm font-semibold text-slate-700">10-Class Forecast</span>
                   </div>
-                  <div className="relative h-32 lg:h-40">
-                    <div className="absolute inset-0 flex items-end justify-between gap-0.5">
-                      {forecast.map((pct, i) => (
-                        <div key={i} className="flex-1 group relative">
-                          <div
-                            className={`w-full rounded-t transition-all cursor-pointer ${
-                              pct >= requirement ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
-                            }`}
-                            style={{ height: `${pct}%` }}
-                          >
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                              {Math.round(pct)}%
+                  <div className="relative h-32 lg:h-40" style={{ paddingBottom: '8px' }}>
+                    <div className="absolute inset-0 flex items-end justify-between gap-0.5" style={{ paddingBottom: '20px' }}>
+                      {forecast.map((pct, i) => {
+                        const heightPercent = (pct / maxForecast) * 100;
+                        return (
+                          <div key={i} className="flex-1 group relative flex flex-col items-center h-full justify-end">
+                            <div
+                              className={`w-full rounded-t transition-all cursor-pointer ${
+                                pct >= requirement ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
+                              }`}
+                              style={{ height: `${heightPercent}%` }}
+                            >
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                {Math.round(pct)}%
+                              </div>
                             </div>
                           </div>
-                          <div className="text-center text-xs text-slate-500 mt-1">
-                            {i === 0 ? 'Now' : i}
-                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-500">
+                      {forecast.map((_, i) => (
+                        <div key={i} className="flex-1 text-center">
+                          {i === 0 ? 'Now' : i}
                         </div>
                       ))}
                     </div>
                     <div
                       className="absolute w-full border-t-2 border-dashed border-indigo-400 pointer-events-none"
-                      style={{ bottom: `${requirement}%` }}
+                      style={{ bottom: `${20 + ((requirement / maxForecast) * (100 - 20))}px` }}
                     >
                       <span className="absolute -top-3 right-0 text-xs font-semibold text-indigo-600 bg-white px-1 rounded">
                         {requirement}%
@@ -627,36 +672,64 @@ export default function AttendanceTracker() {
 
                     {/* Date Navigation */}
                     {subjects.length > 0 && (
-                      <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between">
-                        <button
-                          onClick={() => setDateOffset(dateOffset + 1)}
-                          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                          <ChevronLeft className="w-5 h-5 text-slate-600" />
-                        </button>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-slate-700">
-                            {new Date(dates[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dates[6]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </div>
-                          {dateOffset > 0 && (
-                            <button
-                              onClick={() => setDateOffset(0)}
-                              className="text-xs text-indigo-600 font-medium hover:underline"
-                            >
-                              Jump to today
-                            </button>
-                          )}
+                      <>
+                        {/* View Mode Toggle */}
+                        <div className="flex gap-2 p-1 bg-white rounded-xl shadow-sm border border-slate-200">
+                          <button
+                            onClick={() => { setViewMode('week'); setDateOffset(0); }}
+                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                              viewMode === 'week' ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                            }`}
+                          >
+                            Week View
+                          </button>
+                          <button
+                            onClick={() => { setViewMode('month'); setDateOffset(0); }}
+                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                              viewMode === 'month' ? 'bg-indigo-600 text-white' : 'text-slate-600'
+                            }`}
+                          >
+                            Month View
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setDateOffset(Math.max(0, dateOffset - 1))}
-                          disabled={!canGoNext()}
-                          className={`p-2 rounded-lg transition-colors ${
-                            canGoNext() ? 'hover:bg-slate-100' : 'opacity-30 cursor-not-allowed'
-                          }`}
-                        >
-                          <ChevronRight className="w-5 h-5 text-slate-600" />
-                        </button>
-                      </div>
+
+                        <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex items-center justify-between">
+                          <button
+                            onClick={() => setDateOffset(dateOffset + 1)}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            <ChevronLeft className="w-5 h-5 text-slate-600" />
+                          </button>
+                          <div className="text-center">
+                            <div className="text-xs font-semibold text-slate-700">
+                              {viewMode === 'month' ? (
+                                getCurrentMonthName()
+                              ) : (
+                                <>
+                                  {new Date(dates[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(dates[6]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </>
+                              )}
+                            </div>
+                            {dateOffset > 0 && (
+                              <button
+                                onClick={() => setDateOffset(0)}
+                                className="text-xs text-indigo-600 font-medium hover:underline"
+                              >
+                                Jump to today
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setDateOffset(Math.max(0, dateOffset - 1))}
+                            disabled={!canGoNext()}
+                            className={`p-2 rounded-lg transition-colors ${
+                              canGoNext() ? 'hover:bg-slate-100' : 'opacity-30 cursor-not-allowed'
+                            }`}
+                          >
+                            <ChevronRight className="w-5 h-5 text-slate-600" />
+                          </button>
+                        </div>
+                      </>
                     )}
 
                     {/* Subjects Attendance */}
@@ -697,7 +770,7 @@ export default function AttendanceTracker() {
                               </div>
 
                               {/* Attendance Grid */}
-                              <div className="flex gap-1 overflow-x-auto pb-1">
+                              <div className={`${viewMode === 'month' ? 'grid grid-cols-7 gap-1' : 'flex gap-1 overflow-x-auto'} pb-1`}>
                                 {dates.map(date => {
                                   const key = `${subject.id}-${date}`;
                                   const status = attendance[key];
@@ -708,7 +781,7 @@ export default function AttendanceTracker() {
                                     <button
                                       key={date}
                                       onClick={() => toggleAttendance(subject.id, date)}
-                                      className={`flex flex-col items-center justify-center min-w-[2.5rem] h-14 rounded-lg text-xs font-semibold transition-all ${
+                                      className={`flex flex-col items-center justify-center ${viewMode === 'month' ? 'aspect-square' : 'min-w-[2.5rem] h-14'} rounded-lg text-xs font-semibold transition-all ${
                                         status === 'present'
                                           ? 'bg-emerald-500 text-white'
                                           : status === 'absent'
