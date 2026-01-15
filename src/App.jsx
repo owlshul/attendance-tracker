@@ -228,15 +228,8 @@ export default function AttendanceTracker() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Attendance Survival</h1>
-            <p className="text-xs text-slate-600">Stay above the line</p>
+            <p className="text-xs text-slate-600">Bunk smartly</p>
           </div>
-          <button
-            onClick={resetEverything}
-            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-            title="Reset all data"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Mode Toggle */}
