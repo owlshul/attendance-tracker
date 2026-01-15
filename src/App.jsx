@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Plus, X, ChevronLeft, ChevronRight, RotateCcw, AlertTriangle, HelpCircle, Info } from 'lucide-react';
 
 export default function AttendanceTracker() {
-  const [mode, setMode] = useState('pro');
-  const [requirement, setRequirement] = useState(75);
+  const [mode, setMode] = useState('quick');
+  const [requirement, setRequirement] = useState(67);
   
   // Quick mode
   const [quickTotal, setQuickTotal] = useState(0);
@@ -27,8 +27,8 @@ export default function AttendanceTracker() {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        setMode(data.mode || 'pro');
-        setRequirement(data.requirement || 75);
+        setMode(data.mode || 'quick');
+        setRequirement(data.requirement || 67);
         setQuickTotal(data.quickTotal || 0);
         setQuickAttended(data.quickAttended || 0);
         setSubjects(data.subjects || []);
@@ -261,9 +261,9 @@ export default function AttendanceTracker() {
             <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl">
               <div className="text-6xl mb-4">🎯</div>
               <h1 className="text-3xl font-bold text-slate-900 mb-3">Attendance Tracker</h1>
-              <p className="text-slate-600 mb-6">Keep track of your attendance and know exactly when you can skip class.</p>
+              <p className="text-slate-600 mb-8">Keep track of your attendance and know exactly when you can skip class.</p>
               
-              <div className="space-y-4 text-left mb-8">
+              <div className="space-y-3 text-left mb-8">
                 <div className="bg-indigo-50 rounded-xl p-4">
                   <div className="font-semibold text-indigo-900 mb-1">Quick Mode</div>
                   <div className="text-sm text-indigo-700">Simple counter. Just enter total classes and how many you attended.</div>
@@ -276,7 +276,10 @@ export default function AttendanceTracker() {
               </div>
               
               <button
-                onClick={() => setHasSeenWelcome(true)}
+                onClick={() => {
+                  setHasSeenWelcome(true);
+                  setIsFirstTime(false);
+                }}
                 className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
               >
                 Let's Start
@@ -458,22 +461,6 @@ export default function AttendanceTracker() {
                 </div>
               </div>
             </div>
-
-            {/* Helpful hint for first-time Quick Mode users */}
-            {isFirstTime && quickTotal === 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
-                <p className="font-semibold mb-1">👆 Start here</p>
-                <p>Enter how many classes have happened and how many you attended. The app will calculate everything else.</p>
-              </div>
-            )}
-
-            {/* After entering data, show next step */}
-            {isFirstTime && quickTotal > 0 && quickAttended >= 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-900">
-                <p className="font-semibold mb-1">✓ Great! Now check above:</p>
-                <p><strong>Safe Skips</strong> = how many you can miss<br /><strong>Attend Next</strong> = how many you must attend</p>
-              </div>
-            )}
 
             {/* Buffer Indicator */}
             <div className={`rounded-xl p-3 ${stats.percentage >= requirement ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
@@ -883,14 +870,6 @@ export default function AttendanceTracker() {
                       </div>
                     ) : (
                       <>
-                        {subjects.length === 1 && Object.keys(attendance).length === 0 && (
-                          <div className="mb-3">
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
-                              <p className="font-semibold mb-1">✓ Subject added!</p>
-                              <p>Now click on any date below to mark attendance. Gray → Green (present) → Red (absent)</p>
-                            </div>
-                          </div>
-                        )}
                       <div className="space-y-2">
                         {subjects.map(subject => {
                           const subStats = getSubjectStats(subject.id);
@@ -968,3 +947,4 @@ export default function AttendanceTracker() {
     </div>
   );
 }
+
