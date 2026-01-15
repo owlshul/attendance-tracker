@@ -18,6 +18,8 @@ export default function AttendanceTracker() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const [showHelp, setShowHelp] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(true);
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
 
   // Load from localStorage with version tracking
   useEffect(() => {
@@ -32,7 +34,19 @@ export default function AttendanceTracker() {
         setSubjects(data.subjects || []);
         setAttendance(data.attendance || {});
         setViewMode(data.viewMode || 'week');
-      } catch (e) {}
+        setHasSeenWelcome(data.hasSeenWelcome || false);
+        
+        // Check if truly first time (no data at all)
+        if (data.quickTotal === 0 && data.quickAttended === 0 && (!data.subjects || data.subjects.length === 0)) {
+          setIsFirstTime(true);
+        } else {
+          setIsFirstTime(false);
+        }
+      } catch (e) {
+        setIsFirstTime(true);
+      }
+    } else {
+      setIsFirstTime(true);
     }
   }, []);
 
@@ -40,10 +54,11 @@ export default function AttendanceTracker() {
   useEffect(() => {
     localStorage.setItem('attendance-data-v2', JSON.stringify({
       mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode,
+      hasSeenWelcome,
       version: 2,
       lastUpdated: new Date().toISOString()
     }));
-  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode]);
+  }, [mode, requirement, quickTotal, quickAttended, subjects, attendance, viewMode, hasSeenWelcome]);
 
   // Calculate stats
   const getStats = () => {
@@ -240,120 +255,69 @@ export default function AttendanceTracker() {
           </button>
         </div>
 
-        {/* Help Modal */}
+        {/* Welcome Screen - First Time Only */}
+        {!hasSeenWelcome && (
+          <div className="fixed inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl">
+              <div className="text-6xl mb-4">🎯</div>
+              <h1 className="text-3xl font-bold text-slate-900 mb-3">Attendance Tracker</h1>
+              <p className="text-slate-600 mb-6">Keep track of your attendance and know exactly when you can skip class.</p>
+              
+              <div className="space-y-4 text-left mb-8">
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <div className="font-semibold text-indigo-900 mb-1">Quick Mode</div>
+                  <div className="text-sm text-indigo-700">Simple counter. Just enter total classes and how many you attended.</div>
+                </div>
+                
+                <div className="bg-purple-50 rounded-xl p-4">
+                  <div className="font-semibold text-purple-900 mb-1">Pro Mode</div>
+                  <div className="text-sm text-purple-700">Track each subject separately. See which classes need attention.</div>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setHasSeenWelcome(true)}
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
+              >
+                Let's Start
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Simple Help Modal */}
         {showHelp && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowHelp(false)}>
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between rounded-t-2xl">
-                <h2 className="text-xl font-bold text-slate-900">📚 Quick Guide</h2>
+                <h2 className="text-lg font-bold text-slate-900">Need Help?</h2>
                 <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-slate-100 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="p-6 space-y-6">
-                {/* Two Modes */}
+              <div className="p-6 space-y-4">
                 <div>
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">⚡</span>
-                    Two Modes to Choose
-                  </h3>
+                  <h3 className="font-semibold text-slate-900 mb-2">What do the numbers mean?</h3>
                   <div className="space-y-2 text-sm text-slate-700">
-                    <p><strong>Quick Mode:</strong> Just punch in numbers. Perfect for lazy tracking or when you don't care about subject details.</p>
-                    <p className="pl-4 text-xs">→ Use +/− buttons or type directly in Total and Attended boxes. That's it.</p>
-                    
-                    <p><strong>Pro Mode:</strong> Track each subject separately. See which classes are killing your percentage. More work, more insights.</p>
-                    <p className="pl-4 text-xs">→ Add subjects, mark attendance by clicking dates, view detailed breakdowns.</p>
+                    <p><strong>Safe Skips:</strong> How many classes you can miss while staying above your target.</p>
+                    <p><strong>Attend Next:</strong> How many classes you need to attend (in a row) to reach your target.</p>
                   </div>
                 </div>
 
-                {/* Understanding Stats */}
                 <div className="bg-slate-50 rounded-xl p-4">
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">🎯</span>
-                    What the Numbers Mean
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p><strong>Safe Skips:</strong> How many classes you can bunk and still hit your target. Zero means don't even think about it.</p>
-                    <p><strong>Attend Next:</strong> Classes you MUST attend in a row to reach your target. The number you don't want to see grow.</p>
-                    <p><strong>Buffer:</strong> How far you are from the danger zone. Negative = you're screwed, positive = you're chilling.</p>
-                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">The math is harsh</h3>
+                  <p className="text-sm text-slate-700">When you attend a class, both numbers increase (attended AND total). This makes it hard to climb back up once you fall below target.</p>
+                  <p className="text-sm text-slate-700 mt-2">Example: At 92%, you need 7 consecutive classes to reach 95%.</p>
                 </div>
 
-                {/* Forecast */}
                 <div>
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">📊</span>
-                    Reading the Forecast
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p>Shows your attendance if you attend the next 10 classes straight.</p>
-                    <p><strong className="text-emerald-600">Green bars:</strong> You're safe</p>
-                    <p><strong className="text-red-600">Red bars:</strong> Still below target</p>
-                    <p>The dashed line is your target. Cross it to survive.</p>
-                  </div>
-                </div>
-
-                {/* Pro Mode Tips */}
-                <div>
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">💡</span>
-                    How to Use Pro Mode
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p><strong>Step 1: Add Subjects</strong></p>
-                    <p className="pl-4">Go to "Mark Attendance" tab → Click "Add Subject" → Type subject name → Hit Add. Repeat for all subjects.</p>
-                    
-                    <p className="mt-2"><strong>Step 2: Mark Attendance</strong></p>
-                    <p className="pl-4">Click on any date box to mark: Empty (gray) → Present (green) → Absent (red) → Empty. Click again to cycle through.</p>
-                    
-                    <p className="mt-2"><strong>Step 3: View Dashboard</strong></p>
-                    <p className="pl-4">Switch to "Dashboard" tab to see all subjects at once. Red % = needs attention. Green % = you're good.</p>
-                    
-                    <p className="mt-2"><strong>Week vs Month View:</strong></p>
-                    <p className="pl-4">• Week: Shows 7 days, scroll left/right with arrows</p>
-                    <p className="pl-4">• Month: Shows entire month in calendar grid</p>
-                    <p className="pl-4">Use arrows to navigate past/future. "Jump to today" brings you back.</p>
-                  </div>
-                </div>
-
-                {/* The Math */}
-                <div className="bg-amber-50 rounded-xl p-4">
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">🧮</span>
-                    Why "Attend Next" is So High
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p>Math is brutal. When you attend a class, BOTH numbers go up (attended AND total).</p>
-                    <p>Example: At 92% (12/13), reaching 95% needs 7 classes because you're climbing from 92% → 93% → 94% → 95%.</p>
-                    <p>Each class barely moves the needle. That's why recovery is painful. Don't fall below target.</p>
-                  </div>
-                </div>
-
-                {/* Pro Tips */}
-                <div>
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">🔥</span>
-                    Pro Survival Tips
-                  </h3>
-                  <ul className="space-y-1 text-sm text-slate-700 list-disc list-inside">
-                    <li>Keep a 5% buffer above your target. Life happens.</li>
-                    <li>Check "Safe Skips" before bunking. Don't trust your gut.</li>
-                    <li>Red status? Grind mode activated. No excuses.</li>
-                    <li>Pro Mode helps you see which subject needs attention.</li>
-                  </ul>
-                </div>
-
-                {/* Data Safety */}
-                <div className="bg-indigo-50 rounded-xl p-4">
-                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <span className="text-lg">💾</span>
-                    Your Data is Safe
-                  </h3>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <p>Everything saves automatically in your browser. Close the tab, come back later - it's all there.</p>
-                    <p><strong>Warning:</strong> Clearing browser data = losing everything.</p>
-                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">Pro Mode Quick Guide</h3>
+                  <ol className="text-sm text-slate-700 space-y-1 list-decimal list-inside">
+                    <li>Add your subjects</li>
+                    <li>Click on dates to mark: gray → green (present) → red (absent)</li>
+                    <li>Check Dashboard to see all subjects at once</li>
+                  </ol>
                 </div>
               </div>
 
@@ -362,7 +326,7 @@ export default function AttendanceTracker() {
                   onClick={() => setShowHelp(false)}
                   className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  Got it! 👍
+                  Got it
                 </button>
               </div>
             </div>
@@ -494,6 +458,22 @@ export default function AttendanceTracker() {
                 </div>
               </div>
             </div>
+
+            {/* Helpful hint for first-time Quick Mode users */}
+            {isFirstTime && quickTotal === 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
+                <p className="font-semibold mb-1">👆 Start here</p>
+                <p>Enter how many classes have happened and how many you attended. The app will calculate everything else.</p>
+              </div>
+            )}
+
+            {/* After entering data, show next step */}
+            {isFirstTime && quickTotal > 0 && quickAttended >= 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-900">
+                <p className="font-semibold mb-1">✓ Great! Now check above:</p>
+                <p><strong>Safe Skips</strong> = how many you can miss<br /><strong>Attend Next</strong> = how many you must attend</p>
+              </div>
+            )}
 
             {/* Buffer Indicator */}
             <div className={`rounded-xl p-3 ${stats.percentage >= requirement ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
@@ -778,24 +758,16 @@ export default function AttendanceTracker() {
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
-                      <div className="text-4xl mb-3">📚</div>
-                      <div className="text-sm font-semibold text-slate-700 mb-1">No subjects yet</div>
-                      <div className="text-xs text-slate-500 mb-4">Click below to add your first subject</div>
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 text-center">
+                      <div className="text-5xl mb-3">👋</div>
+                      <div className="text-base font-semibold text-slate-700 mb-2">Let's add your first subject</div>
+                      <div className="text-sm text-slate-600 mb-4">Click the button below, then you can start marking attendance.</div>
                       <button
                         onClick={() => setActiveTab('tracker')}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors mb-3"
+                        className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg"
                       >
                         Add Subject
                       </button>
-                      <div className="mt-4 pt-4 border-t border-slate-200 text-left">
-                        <p className="text-xs text-slate-600 mb-2"><strong>Quick Start:</strong></p>
-                        <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
-                          <li>Add all your subjects</li>
-                          <li>Go to any date and click to mark attendance</li>
-                          <li>Return to Dashboard to see your stats</li>
-                        </ol>
-                      </div>
                     </div>
                   )
                 ) : (
@@ -905,15 +877,20 @@ export default function AttendanceTracker() {
                     {/* Subjects Attendance */}
                     {subjects.length === 0 ? (
                       <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
-                        <div className="text-4xl mb-3">🎓</div>
-                        <div className="text-sm font-semibold text-slate-700 mb-2">No subjects yet</div>
-                        <div className="text-xs text-slate-600 mb-4">Use the "Add Subject" button above ☝️</div>
-                        <div className="bg-indigo-50 rounded-lg p-3 text-left">
-                          <p className="text-xs font-semibold text-indigo-900 mb-1">💡 Tip:</p>
-                          <p className="text-xs text-indigo-700">Add all your subjects first, then you can mark attendance for each one by clicking on dates.</p>
-                        </div>
+                        <div className="text-5xl mb-3">📝</div>
+                        <div className="text-base font-semibold text-slate-700 mb-2">Click "Add Subject" above</div>
+                        <div className="text-sm text-slate-600">Add all your subjects first, then you can mark attendance.</div>
                       </div>
                     ) : (
+                      <>
+                        {subjects.length === 1 && Object.keys(attendance).length === 0 && (
+                          <div className="mb-3">
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-900">
+                              <p className="font-semibold mb-1">✓ Subject added!</p>
+                              <p>Now click on any date below to mark attendance. Gray → Green (present) → Red (absent)</p>
+                            </div>
+                          </div>
+                        )}
                       <div className="space-y-2">
                         {subjects.map(subject => {
                           const subStats = getSubjectStats(subject.id);
@@ -979,6 +956,7 @@ export default function AttendanceTracker() {
                           );
                         })}
                       </div>
+                      </>
                     )}
                   </div>
                 )}
