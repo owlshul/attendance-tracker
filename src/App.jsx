@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Plus, X, ChevronLeft, ChevronRight, RotateCcw, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Plus, X, ChevronLeft, ChevronRight, RotateCcw, AlertTriangle, HelpCircle, Info } from 'lucide-react';
 
 export default function AttendanceTracker() {
   const [mode, setMode] = useState('pro');
@@ -17,6 +17,7 @@ export default function AttendanceTracker() {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
+  const [showHelp, setShowHelp] = useState(false);
 
   // Load from localStorage with version tracking
   useEffect(() => {
@@ -230,7 +231,143 @@ export default function AttendanceTracker() {
             <h1 className="text-xl font-bold text-slate-900">Attendance Survival</h1>
             <p className="text-xs text-slate-600">Bunk smartly</p>
           </div>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            title="How to use"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Help Modal */}
+        {showHelp && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowHelp(false)}>
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between rounded-t-2xl">
+                <h2 className="text-xl font-bold text-slate-900">📚 Quick Guide</h2>
+                <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Two Modes */}
+                <div>
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">⚡</span>
+                    Two Modes to Choose
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><strong>Quick Mode:</strong> Just punch in numbers. Perfect for lazy tracking or when you don't care about subject details.</p>
+                    <p className="pl-4 text-xs">→ Use +/− buttons or type directly in Total and Attended boxes. That's it.</p>
+                    
+                    <p><strong>Pro Mode:</strong> Track each subject separately. See which classes are killing your percentage. More work, more insights.</p>
+                    <p className="pl-4 text-xs">→ Add subjects, mark attendance by clicking dates, view detailed breakdowns.</p>
+                  </div>
+                </div>
+
+                {/* Understanding Stats */}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">🎯</span>
+                    What the Numbers Mean
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><strong>Safe Skips:</strong> How many classes you can bunk and still hit your target. Zero means don't even think about it.</p>
+                    <p><strong>Attend Next:</strong> Classes you MUST attend in a row to reach your target. The number you don't want to see grow.</p>
+                    <p><strong>Buffer:</strong> How far you are from the danger zone. Negative = you're screwed, positive = you're chilling.</p>
+                  </div>
+                </div>
+
+                {/* Forecast */}
+                <div>
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">📊</span>
+                    Reading the Forecast
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>Shows your attendance if you attend the next 10 classes straight.</p>
+                    <p><strong className="text-emerald-600">Green bars:</strong> You're safe</p>
+                    <p><strong className="text-red-600">Red bars:</strong> Still below target</p>
+                    <p>The dashed line is your target. Cross it to survive.</p>
+                  </div>
+                </div>
+
+                {/* Pro Mode Tips */}
+                <div>
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">💡</span>
+                    How to Use Pro Mode
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><strong>Step 1: Add Subjects</strong></p>
+                    <p className="pl-4">Go to "Mark Attendance" tab → Click "Add Subject" → Type subject name → Hit Add. Repeat for all subjects.</p>
+                    
+                    <p className="mt-2"><strong>Step 2: Mark Attendance</strong></p>
+                    <p className="pl-4">Click on any date box to mark: Empty (gray) → Present (green) → Absent (red) → Empty. Click again to cycle through.</p>
+                    
+                    <p className="mt-2"><strong>Step 3: View Dashboard</strong></p>
+                    <p className="pl-4">Switch to "Dashboard" tab to see all subjects at once. Red % = needs attention. Green % = you're good.</p>
+                    
+                    <p className="mt-2"><strong>Week vs Month View:</strong></p>
+                    <p className="pl-4">• Week: Shows 7 days, scroll left/right with arrows</p>
+                    <p className="pl-4">• Month: Shows entire month in calendar grid</p>
+                    <p className="pl-4">Use arrows to navigate past/future. "Jump to today" brings you back.</p>
+                  </div>
+                </div>
+
+                {/* The Math */}
+                <div className="bg-amber-50 rounded-xl p-4">
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">🧮</span>
+                    Why "Attend Next" is So High
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>Math is brutal. When you attend a class, BOTH numbers go up (attended AND total).</p>
+                    <p>Example: At 92% (12/13), reaching 95% needs 7 classes because you're climbing from 92% → 93% → 94% → 95%.</p>
+                    <p>Each class barely moves the needle. That's why recovery is painful. Don't fall below target.</p>
+                  </div>
+                </div>
+
+                {/* Pro Tips */}
+                <div>
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">🔥</span>
+                    Pro Survival Tips
+                  </h3>
+                  <ul className="space-y-1 text-sm text-slate-700 list-disc list-inside">
+                    <li>Keep a 5% buffer above your target. Life happens.</li>
+                    <li>Check "Safe Skips" before bunking. Don't trust your gut.</li>
+                    <li>Red status? Grind mode activated. No excuses.</li>
+                    <li>Pro Mode helps you see which subject needs attention.</li>
+                  </ul>
+                </div>
+
+                {/* Data Safety */}
+                <div className="bg-indigo-50 rounded-xl p-4">
+                  <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className="text-lg">💾</span>
+                    Your Data is Safe
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>Everything saves automatically in your browser. Close the tab, come back later - it's all there.</p>
+                    <p><strong>Warning:</strong> Clearing browser data = losing everything.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 bg-slate-50 p-4 border-t border-slate-200 rounded-b-2xl">
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Got it! 👍
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mode Toggle */}
         <div className="flex gap-2 p-1 bg-white rounded-xl shadow-sm mb-4 max-w-md mx-auto">
@@ -273,12 +410,28 @@ export default function AttendanceTracker() {
             {/* Action Cards */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-                <div className="text-xs font-semibold text-slate-600 mb-1">Safe Skips</div>
+                <div className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  Safe Skips
+                  <div className="group relative">
+                    <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      Classes you can safely miss
+                    </div>
+                  </div>
+                </div>
                 <div className="text-4xl font-black text-emerald-600">{stats.bunksLeft}</div>
                 <div className="text-xs text-slate-500 mt-1">Can miss</div>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-                <div className="text-xs font-semibold text-slate-600 mb-1">Attend Next</div>
+                <div className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                  Attend Next
+                  <div className="group relative">
+                    <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                      Must attend consecutively
+                    </div>
+                  </div>
+                </div>
                 <div className="text-4xl font-black text-red-600">{stats.toRecover}</div>
                 <div className="text-xs text-slate-500 mt-1">Must attend</div>
               </div>
@@ -454,12 +607,28 @@ export default function AttendanceTracker() {
                 {/* Action Cards */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Safe Skips</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                      Safe Skips
+                      <div className="group relative">
+                        <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                          Classes you can safely miss
+                        </div>
+                      </div>
+                    </div>
                     <div className="text-4xl font-black text-emerald-600">{stats.bunksLeft}</div>
                     <div className="text-xs text-slate-500 mt-1">Can miss</div>
                   </div>
                   <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs font-semibold text-slate-600 mb-1">Attend Next</div>
+                    <div className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                      Attend Next
+                      <div className="group relative">
+                        <Info className="w-3 h-3 text-slate-400 cursor-help" />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                          Must attend consecutively
+                        </div>
+                      </div>
+                    </div>
                     <div className="text-4xl font-black text-red-600">{stats.toRecover}</div>
                     <div className="text-xs text-slate-500 mt-1">Must attend</div>
                   </div>
@@ -612,13 +781,21 @@ export default function AttendanceTracker() {
                     <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
                       <div className="text-4xl mb-3">📚</div>
                       <div className="text-sm font-semibold text-slate-700 mb-1">No subjects yet</div>
-                      <div className="text-xs text-slate-500 mb-4">Add subjects to track attendance</div>
+                      <div className="text-xs text-slate-500 mb-4">Click below to add your first subject</div>
                       <button
                         onClick={() => setActiveTab('tracker')}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors mb-3"
                       >
                         Add Subject
                       </button>
+                      <div className="mt-4 pt-4 border-t border-slate-200 text-left">
+                        <p className="text-xs text-slate-600 mb-2"><strong>Quick Start:</strong></p>
+                        <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
+                          <li>Add all your subjects</li>
+                          <li>Go to any date and click to mark attendance</li>
+                          <li>Return to Dashboard to see your stats</li>
+                        </ol>
+                      </div>
                     </div>
                   )
                 ) : (
@@ -729,7 +906,12 @@ export default function AttendanceTracker() {
                     {subjects.length === 0 ? (
                       <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200 text-center">
                         <div className="text-4xl mb-3">🎓</div>
-                        <div className="text-sm text-slate-600">Add a subject to get started</div>
+                        <div className="text-sm font-semibold text-slate-700 mb-2">No subjects yet</div>
+                        <div className="text-xs text-slate-600 mb-4">Use the "Add Subject" button above ☝️</div>
+                        <div className="bg-indigo-50 rounded-lg p-3 text-left">
+                          <p className="text-xs font-semibold text-indigo-900 mb-1">💡 Tip:</p>
+                          <p className="text-xs text-indigo-700">Add all your subjects first, then you can mark attendance for each one by clicking on dates.</p>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
