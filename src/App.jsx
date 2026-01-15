@@ -260,7 +260,7 @@ export default function AttendanceTracker() {
           <div className="fixed inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl">
               <div className="text-6xl mb-4">🎯</div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-3">Attendance Tracker</h1>
+              <h1 className="text-3xl font-bold text-slate-900 mb-3">Bunk Smartly</h1>
               <p className="text-slate-600 mb-8">Keep track of your attendance and know exactly when you can skip class.</p>
               
               <div className="space-y-3 text-left mb-8">
